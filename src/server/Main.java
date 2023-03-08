@@ -1,25 +1,23 @@
 package server;
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.IOException;
+import java.io.*;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Scanner;
 
 public class Main {
     private static final String address = "192.168.1.29";
     private static final int port = 34522;
     public static void main(String[] args) {
-        List<String> initialArray = new ArrayList<>();
-        for (int i = 1; i <= 10; i++) {
-            initialArray.add("file" + i);
-        }
-        String[] operations = new String[]{"add", "get", "delete", "exit"};
-        List<String> serverStorage = new ArrayList<>();
         System.out.println("Server started!");
+        String dirPath = System.getProperty("user.dir") + File.separator + "src" + File.separator + "server" + File.separator + "data" + File.separator;
+        //String dirPath = "C:\\Users\\alahmm\\IdeaProjects\\File Server1\\File Server\\task\\src\\server\\data\\";
         try (ServerSocket server = new ServerSocket(port, 50, InetAddress.getByName(address));) {//try-with-resources instead of using close
             while (true) {
                 try (
@@ -27,39 +25,57 @@ public class Main {
                         DataInputStream input = new DataInputStream(socket.getInputStream());
                         DataOutputStream output = new DataOutputStream(socket.getOutputStream())
                 ) {
-                    System.out.println("Received: Give me everything you have!");
-                    /**
-                     * to accept one message
-                     */
                     String msg = input.readUTF(); // read a message from the client
-/*                    System.out.println(msg);
-                    //System.out.println("Received: Give me everything you have!");
-                    String[] listOfInput = msg.split("\\s+");
-                    if (listOfInput[0].equals(operations[0])) {
-                        if (initialArray.contains(listOfInput[1]) && !serverStorage.contains(listOfInput[1])) {
-                            serverStorage.add(listOfInput[1]);
-                            System.out.println(listOfInput[1]);
-                            output.writeUTF(msg); // resend it to the client
+                    if (msg.equals("exit")) {
+                        return;
+                    } else if (Integer.parseInt(msg) == 2) {
+                        output.writeUTF("Enter filename:"); // resend it to the client
+                        String fileName = input.readUTF(); // read a message from the client
+                        File file = new File(dirPath + fileName);
+                        if(!file.exists()) {
+                            output.writeUTF("200");
+                            output.writeUTF("Enter file content:"); // resend it to the client
+                            String fileContent = input.readUTF(); // read a message from the client
+                            try (PrintWriter printWriter = new PrintWriter(file)) {
+                                printWriter.print(fileContent);
+                            }
+                            output.writeUTF("The response says that file was created!");
+                        } else {
+                            output.writeUTF("403");
                         }
-                    } else if (listOfInput[0].equals(operations[1])) {
-                        if (serverStorage.contains(listOfInput[1])) {
-                            System.out.printf(listOfInput[1]);
-                            output.writeUTF(msg); // resend it to the client
+                    } else if (Integer.parseInt(msg) == 1) {
+                        output.writeUTF("Enter filename:"); // resend it to the client
+                        String fileName = input.readUTF(); // read a message from the client
+                        File file = new File(dirPath + fileName);
+                        try {
+                            Scanner scanner = new Scanner(file);
+                            while (scanner.hasNext()) {
+                                output.writeUTF("200");
+                                String content = scanner.nextLine();
+                                output.writeUTF(content);
+                            }
+                            scanner.close();
+                        } catch (FileNotFoundException e) {
+                            output.writeUTF("404");
                         }
-                    } else if (listOfInput[0].equals(operations[2])) {
-                        if (serverStorage.contains(listOfInput[1])) {
-                            serverStorage.remove(listOfInput[1]);
-                            System.out.println(listOfInput[1]);
-                            output.writeUTF(msg); // resend it to the client
-                        }
-                    }*/
+                    } else if (Integer.parseInt(msg) == 3) {
+                        output.writeUTF("Enter filename:"); // resend it to the client
+                        String fileName = input.readUTF(); // read a message from the client
+                        File file = new File(dirPath + fileName);
+                        if(file.exists()) {
+                            output.writeUTF("200");
+                            //file.delete();
 
-                    output.writeUTF(msg); // resend it to the client
-                    System.out.println("Sent: All files were sent!");
-                    return;
-                    /**
-                     * to accept 5 messages
-                     */
+                            Files.delete(Paths.get(file.getAbsolutePath()));
+/*                            Files.deleteIfExists(
+                                    Paths.get(dirPath + fileName));*/
+                            if (!file.exists()) {
+                                output.writeUTF("The response says that the file was successfully deleted!"); // resend it to the client
+                            }
+                        } else {
+                            output.writeUTF("403");
+                        }
+                    }
                 }
             }
         } catch (IOException e) {
