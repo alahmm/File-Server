@@ -1,5 +1,4 @@
 package server;
-
 import java.io.*;
 import java.net.InetAddress;
 import java.net.ServerSocket;
@@ -7,16 +6,27 @@ import java.net.Socket;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Scanner;
+import java.util.*;
 
 public class Main {
     private static final String address = "192.168.1.29";
     private static final int port = 34522;
+
+    public static String generateString(Random rng, String characters, int length)
+    {
+        char[] text = new char[length];
+        for (int i = 0; i < length; i++)
+        {
+            text[i] = characters.charAt(rng.nextInt(characters.length()));
+        }
+        return new String(text);
+    }
     public static void main(String[] args) {
+        Map<Integer, String> map = new HashMap<>();
+        List<FileProperties> list = new ArrayList<>();
         System.out.println("Server started!");
         String dirPath = System.getProperty("user.dir") + File.separator + "src" + File.separator + "server" + File.separator + "data" + File.separator;
+        String dirPathToImportFrom = System.getProperty("user.dir") + File.separator + "src" + File.separator + "client" + File.separator + "data" + File.separator;
         //String dirPath = "C:\\Users\\alahmm\\IdeaProjects\\File Server1\\File Server\\task\\src\\server\\data\\";
         try (ServerSocket server = new ServerSocket(port, 50, InetAddress.getByName(address));) {//try-with-resources instead of using close
             while (true) {
@@ -29,53 +39,106 @@ public class Main {
                     if (msg.equals("exit")) {
                         return;
                     } else if (Integer.parseInt(msg) == 2) {
-                        output.writeUTF("Enter filename:"); // resend it to the client
-                        String fileName = input.readUTF(); // read a message from the client
-                        File file = new File(dirPath + fileName);
-                        if(!file.exists()) {
-                            output.writeUTF("200");
-                            output.writeUTF("Enter file content:"); // resend it to the client
-                            String fileContent = input.readUTF(); // read a message from the client
-                            try (PrintWriter printWriter = new PrintWriter(file)) {
-                                printWriter.print(fileContent);
-                            }
-                            output.writeUTF("The response says that file was created!");
-                        } else {
-                            output.writeUTF("403");
+                        output.writeUTF("Enter name of the file:"); // resend it to the client
+                        int length = input.readInt();                // read length of incoming message
+                        byte[] message = new byte[length];
+                        input.readFully(message, 0, message.length); // read the message
+
+                        output.writeUTF("Enter name of the file to be saved on server:"); // resend it to the client
+                        String fileName = input.readUTF(); // read a message from the client:the name of file in client/data/
+
+                        if (fileName.equals("")) {
+                            Random rand = new Random();
+                            fileName = generateString(rand, "anameoftext", 10);
                         }
+                        try (FileOutputStream fileOuputStream = new FileOutputStream(dirPath + fileName)){
+                            fileOuputStream.write(message);
+                        }
+                        Random rand = new Random();
+                        int rand_int1 = rand.nextInt(100);
+                        output.writeUTF("200 " + rand_int1);
+                        FileProperties files = new FileProperties();
+                        files.setName(fileName);
+                        files.setId(rand_int1);
+
+
+                        FileOutputStream fileOutputStream
+                                = new FileOutputStream("data.txt");
+                        ObjectOutputStream objectOutputStream
+                                = new ObjectOutputStream(fileOutputStream);
+                        objectOutputStream.writeObject(files);
+                        map.put(files.getId(), files.getName());
+                        //objectOutputStream.flush();
+                        objectOutputStream.close();
+
                     } else if (Integer.parseInt(msg) == 1) {
-                        output.writeUTF("Enter filename:"); // resend it to the client
-                        String fileName = input.readUTF(); // read a message from the client
-                        File file = new File(dirPath + fileName);
-                        try {
-                            Scanner scanner = new Scanner(file);
-                            while (scanner.hasNext()) {
+                        String nameOfFileToGet = "";
+                        output.writeUTF("Do you want to get the file by name or by id (1 - name, 2 - id):");
+                        String option = input.readUTF();
+                        if (Integer.parseInt(option) == 2) {
+                            output.writeUTF("Enter id:");
+                            int id = Integer.parseInt(input.readUTF());
+                            FileInputStream fileInputStream
+                                    = new FileInputStream("data.txt");
+                            ObjectInputStream objectInputStream
+                                    = new ObjectInputStream(fileInputStream);
+                            FileProperties p2 = (FileProperties) objectInputStream.readObject();
+                            objectInputStream.close();
+                            if (p2.getId() == id) {
+                                nameOfFileToGet = p2.getName();
                                 output.writeUTF("200");
-                                String content = scanner.nextLine();
-                                output.writeUTF(content);
+                                Path path = Paths.get(dirPath + nameOfFileToGet);
+                                byte[] message = Files.readAllBytes(path);
+                                output.writeInt(message.length); // write length of the message
+                                output.write(message);// write the message
+                            } else {
+                                output.writeUTF("The response says that this file is not found!");
                             }
-                            scanner.close();
-                        } catch (FileNotFoundException e) {
-                            output.writeUTF("404");
+                        } else if (Integer.parseInt(option) == 1)  {
+                            output.writeUTF("Enter name:");
+                            nameOfFileToGet = input.readUTF();
+
+                            File file = new File(dirPath + nameOfFileToGet);
+                            Path path = Paths.get(dirPath + nameOfFileToGet);
+                            if (file.exists()) {
+                                output.writeUTF("200");
+                                byte[] message = Files.readAllBytes(path);
+                                output.writeInt(message.length); // write length of the message
+                                output.write(message);// write the message
+                            } else {
+                                output.writeUTF("The response says that this file is not found!");
+                            }
                         }
                     } else if (Integer.parseInt(msg) == 3) {
-                        output.writeUTF("Enter filename:"); // resend it to the client
-                        String fileName = input.readUTF(); // read a message from the client
-                        File file = new File(dirPath + fileName);
-                        if(file.exists()) {
-                            output.writeUTF("200");
-                            //file.delete();
-
-                            Files.delete(Paths.get(file.getAbsolutePath()));
-/*                            Files.deleteIfExists(
-                                    Paths.get(dirPath + fileName));*/
-                            if (!file.exists()) {
-                                output.writeUTF("The response says that the file was successfully deleted!"); // resend it to the client
+                        String nameOfFileToDelete = "";
+                        output.writeUTF("Do you want to delete the file by name or by id (1 - name, 2 - id):");
+                        String option = input.readUTF();
+                        if (Integer.parseInt(option) == 2) {
+                            output.writeUTF("Enter id:");
+                            int id = Integer.parseInt(input.readUTF());
+                            FileInputStream fileInputStream
+                                    = new FileInputStream("yourfile.txt");
+                            ObjectInputStream objectInputStream
+                                    = new ObjectInputStream(fileInputStream);
+                            FileProperties p2 = (FileProperties) objectInputStream.readObject();
+                            objectInputStream.close();
+                            if (p2.getId() == id) {
+                                nameOfFileToDelete = p2.getName();
                             }
+                        } else if (Integer.parseInt(option) == 1)  {
+                            output.writeUTF("Enter name:");
+                            nameOfFileToDelete = input.readUTF();
+                        }
+                        File file = new File(dirPath + nameOfFileToDelete);
+                        if (file.exists()) {
+                            Files.delete(Paths.get(dirPath + nameOfFileToDelete));
+                            output.writeUTF("The response says that this file was deleted successfully!");
                         } else {
-                            output.writeUTF("403");
+                            output.writeUTF("The response says that this file is not found!");
                         }
                     }
+                } catch (ClassNotFoundException e) {
+                    throw new RuntimeException(e);
                 }
             }
         } catch (IOException e) {
