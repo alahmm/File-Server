@@ -27,6 +27,7 @@ public class client {
                 output.writeUTF(option);
                 System.out.print(input.readUTF());
                 String filename = scanner.next();
+                output.writeUTF(filename);
                 byte[] message = Files.readAllBytes(Paths.get(dirPathToImportFrom + filename));
                 output.writeInt(message.length); // write length of the message
                 output.write(message);// write the message

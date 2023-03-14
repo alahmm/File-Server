@@ -7,6 +7,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class Main {
     private static final String address = "192.168.1.29";
@@ -40,6 +41,7 @@ public class Main {
                         return;
                     } else if (Integer.parseInt(msg) == 2) {
                         output.writeUTF("Enter name of the file:"); // resend it to the client
+                        String fileFromClient = input.readUTF();
                         int length = input.readInt();                // read length of incoming message
                         byte[] message = new byte[length];
                         input.readFully(message, 0, message.length); // read the message
@@ -49,7 +51,7 @@ public class Main {
 
                         if (fileName.equals("")) {
                             Random rand = new Random();
-                            fileName = generateString(rand, "anameoftext", 10);
+                            fileName = generateString(rand, "newfile", 7) + "." + fileFromClient.split("\\.")[1];
                         }
                         try (FileOutputStream fileOuputStream = new FileOutputStream(dirPath + fileName)){
                             fileOuputStream.write(message);
@@ -142,7 +144,7 @@ public class Main {
                                     results.add((FileProperties) ois.readObject());
                                 }
                             } catch (EOFException ignored) {
-                                // as expected
+
                             } finally {
                                 if (fis != null)
                                     fis.close();
@@ -154,6 +156,7 @@ public class Main {
                                     isId = true;
                                     nameOfFileToDelete = object.getName();
                                     Files.delete(Paths.get(dirPath + nameOfFileToDelete));
+                                    serializer(id, results);
                                     output.writeUTF("The response says that this file was deleted successfully!");
                                 }
                             }
@@ -181,6 +184,21 @@ public class Main {
             e.printStackTrace();
         }
 
+    }
+    public static void serializer(int id, List<FileProperties> listOfOldContent) throws IOException {
+        List<FileProperties> listOfNewContent = listOfOldContent.stream().
+                filter(fileProperties -> fileProperties.getId() != id).toList();
+        new FileOutputStream("data.txt").close();
+        if (listOfNewContent.size() >= 1) {
+            for (FileProperties object : listOfNewContent
+            ) {
+                FileOutputStream fos = new FileOutputStream("data.txt", true);
+                BufferedOutputStream bos = new BufferedOutputStream(fos);//for speeding up the I/O operations
+                ObjectOutputStream oos = new ObjectOutputStream(bos);
+                oos.writeObject(object);
+                oos.close();
+            }
+        }
     }
 }
 
