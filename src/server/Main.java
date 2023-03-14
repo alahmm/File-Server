@@ -63,11 +63,11 @@ public class Main {
 
 
                         FileOutputStream fileOutputStream
-                                = new FileOutputStream("data.txt");
+                                = new FileOutputStream("data.txt", true);
                         ObjectOutputStream objectOutputStream
                                 = new ObjectOutputStream(fileOutputStream);
                         objectOutputStream.writeObject(files);
-                        map.put(files.getId(), files.getName());
+                        //map.put(files.getId(), files.getName());
                         //objectOutputStream.flush();
                         objectOutputStream.close();
 
@@ -78,20 +78,36 @@ public class Main {
                         if (Integer.parseInt(option) == 2) {
                             output.writeUTF("Enter id:");
                             int id = Integer.parseInt(input.readUTF());
-                            FileInputStream fileInputStream
-                                    = new FileInputStream("data.txt");
-                            ObjectInputStream objectInputStream
-                                    = new ObjectInputStream(fileInputStream);
-                            FileProperties p2 = (FileProperties) objectInputStream.readObject();
-                            objectInputStream.close();
-                            if (p2.getId() == id) {
-                                nameOfFileToGet = p2.getName();
-                                output.writeUTF("200");
-                                Path path = Paths.get(dirPath + nameOfFileToGet);
-                                byte[] message = Files.readAllBytes(path);
-                                output.writeInt(message.length); // write length of the message
-                                output.write(message);// write the message
-                            } else {
+                            List<FileProperties> results = new ArrayList<>();
+
+                            FileInputStream fis = null;
+                            try {
+                                fis =new FileInputStream("data.txt");
+                                while (true) {
+                                    ObjectInputStream ois = new ObjectInputStream(fis);
+                                    results.add((FileProperties) ois.readObject());
+                                }
+                            } catch (EOFException ignored) {
+                                // as expected
+                            } finally {
+                                if (fis != null)
+                                    fis.close();
+                            }
+                            boolean isId = false;
+                            for (FileProperties object : results
+                            ) {
+                                if (object.getId() == id) {
+                                    isId = true;
+                                    nameOfFileToGet = object.getName();
+                                    output.writeUTF("200");
+                                    Path path = Paths.get(dirPath + nameOfFileToGet);
+                                    byte[] message = Files.readAllBytes(path);
+                                    output.writeInt(message.length); // write length of the message
+                                    output.write(message);// write the message
+                                }
+                            }
+                            if(!isId)
+                            {
                                 output.writeUTF("The response says that this file is not found!");
                             }
                         } else if (Integer.parseInt(option) == 1)  {
@@ -116,14 +132,34 @@ public class Main {
                         if (Integer.parseInt(option) == 2) {
                             output.writeUTF("Enter id:");
                             int id = Integer.parseInt(input.readUTF());
-                            FileInputStream fileInputStream
-                                    = new FileInputStream("yourfile.txt");
-                            ObjectInputStream objectInputStream
-                                    = new ObjectInputStream(fileInputStream);
-                            FileProperties p2 = (FileProperties) objectInputStream.readObject();
-                            objectInputStream.close();
-                            if (p2.getId() == id) {
-                                nameOfFileToDelete = p2.getName();
+                            List<FileProperties> results = new ArrayList<>();
+
+                            FileInputStream fis = null;
+                            try {
+                                fis =new FileInputStream("data.txt");
+                                while (true) {
+                                    ObjectInputStream ois = new ObjectInputStream(fis);
+                                    results.add((FileProperties) ois.readObject());
+                                }
+                            } catch (EOFException ignored) {
+                                // as expected
+                            } finally {
+                                if (fis != null)
+                                    fis.close();
+                            }
+                            boolean isId = false;
+                            for (FileProperties object : results
+                            ) {
+                                if (object.getId() == id) {
+                                    isId = true;
+                                    nameOfFileToDelete = object.getName();
+                                    Files.delete(Paths.get(dirPath + nameOfFileToDelete));
+                                    output.writeUTF("The response says that this file was deleted successfully!");
+                                }
+                            }
+                            if(!isId)
+                            {
+                                output.writeUTF("The response says that this file is not found!");
                             }
                         } else if (Integer.parseInt(option) == 1)  {
                             output.writeUTF("Enter name:");
