@@ -62,15 +62,11 @@ public class Main {
                         FileProperties files = new FileProperties();
                         files.setName(fileName);
                         files.setId(rand_int1);
-
-
                         FileOutputStream fileOutputStream
                                 = new FileOutputStream("data.txt", true);
                         ObjectOutputStream objectOutputStream
                                 = new ObjectOutputStream(fileOutputStream);
                         objectOutputStream.writeObject(files);
-                        //map.put(files.getId(), files.getName());
-                        //objectOutputStream.flush();
                         objectOutputStream.close();
 
                     } else if (Integer.parseInt(msg) == 1) {
